@@ -76,6 +76,7 @@ Options:
   -J[N]    Allow N jobs for compression >= FLAC 1.5.0 (default: cores/threads)
   -T[N]    Allow N threads for compression >= FLAC 1.5.0 (default: 2)
   -n       Disable color output
+  -q       Disable runtime information banner
   -x       Do not apply COMPRESSION tag when compressing FLAC files
   -o       Generate a new configuration file and exit
   -v       Print the version number of redoflacs and exit
@@ -1079,7 +1080,7 @@ _process_arguments()
   # Global variables used in other functions/operations
   local -g create_spectrogram force_compression force_replaygain \
     no_extra_tags directory operations global_jobs compress_jobs \
-    compress_threads
+    compress_threads no_banner
 
   local arg invalid op
   local -a conflicting operations_to_run
@@ -1092,7 +1093,7 @@ _process_arguments()
 
   # Processes all the possible positional parameters, short options
   # only, handling conflicting parameters
-  while getopts ':j:J:T:mtcCaAgLlGrepnhvox' arg "$@"; do
+  while getopts ':j:J:T:mtcCaAgLlGrepnhvoxq' arg "$@"; do
     case "$arg" in
       # Given argument is not valid. 'OPTARG' is 'arg' before 'arg' is
       # set to '?'
@@ -1119,6 +1120,9 @@ _process_arguments()
 
       # Disable color output
       'n') unset -v 'reset' 'red' 'green' 'yellow' 'blue' 'magenta' 'cyan' ;;
+
+      # Disable runtime information banner
+      'q') no_banner='true' ;;
 
       # Prevent COMPRESSION tag from being applied during compression
       'x') no_extra_tags='true' ;;
@@ -2975,7 +2979,7 @@ else
 fi
 
 # Display a banner for runtime information and configuration settings
-_runtime_banner
+[[ ! "$no_banner" ]] && _runtime_banner
 
 # _retag(): Display a countdown
 [[ " ${operations[*]} " == *' _retag '* ]] && _countdown_metadata
