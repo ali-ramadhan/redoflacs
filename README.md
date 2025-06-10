@@ -151,3 +151,12 @@ the repository and open a pull request on GitHub.
 
 If you encounter any issues or have questions, please refer to the built-in
 help (`redoflacs -h`) or the provided man page distributed with this program.
+
+## Binary Dependencies
+
+The optional tools `auCDtect` and `LAC` (Lossless Audio Checker) can be
+difficult to find as they are no longer actively distributed. For convenience,
+pre-compiled binaries for both Linux and Windows are available in the
+[binaries branch](https://github.com/sirjaren/redoflacs/tree/binaries) of this
+repository. These binaries can be downloaded and placed in your `$PATH` to
+enable the authenticity analysis features of `redoflacs`.
