@@ -44,9 +44,9 @@
 # Creates a messsage like (with a yellow asterisk):
 #    * This is obsolete
 #
-_info() { printf     ' %s %b\n' "$green*$reset" "$@";  }  # Green
-_warn() { printf >&2 ' %s %b\n' "$yellow*$reset" "$@"; }  # Yellow
-_error(){ printf >&2 ' %s %b\n' "$red*$reset" "$@";    }  # Red
+_info() { [[ ! "$quiet_mode" ]] && printf     ' %s %b\n' "$green*$reset" "$@";  }  # Green
+_warn() { [[ ! "$quiet_mode" ]] && printf >&2 ' %s %b\n' "$yellow*$reset" "$@"; }  # Yellow
+_error(){ [[ ! "$quiet_mode" ]] && printf >&2 ' %s %b\n' "$red*$reset" "$@";    }  # Red
 
 #
 # Display help
@@ -76,7 +76,8 @@ Options:
   -J[N]    Allow N jobs for compression >= FLAC 1.5.0 (default: cores/threads)
   -T[N]    Allow N threads for compression >= FLAC 1.5.0 (default: 2)
   -n       Disable color output
-  -q       Disable runtime information banner
+  -q       Quiet mode (suppress all output, use exit codes for status)
+  -B       Disable runtime information banner
   -x       Do not apply COMPRESSION tag when compressing FLAC files
   -o       Generate a new configuration file and exit
   -v       Print the version number of redoflacs and exit
@@ -281,6 +282,9 @@ _runtime_banner()
 #
 _operation_title()
 {
+  # Suppress operation titles in quiet mode
+  [[ "$quiet_mode" ]] && return 0
+
   local fmt status_banner issues_banner right_align
 
   # Total number of issues found
@@ -379,6 +383,9 @@ _operation_title()
 #
 _print_item()
 {
+  # Suppress item display in quiet mode
+  [[ "$quiet_mode" ]] && return 0
+
   local fmt truncated
   local basename="${item##*/}"
   local label="${1:+ $1}"  # Operation label (with leading space)
@@ -426,11 +433,11 @@ _print_item()
 # These functions are used after '_print_item()' to update/indicate the
 # status of a given item in an operation
 #
-_print_item_ok()   { printf '%b' "\033[${row}H${green}100%$reset";  }
-_print_item_fail() { printf '%b' "\033[${row}H${red}fail$reset";    }
-_print_item_check(){ printf '%b' "\033[${row}H${yellow}chck$reset"; }
-_print_item_half() { printf '%b' "\033[${row}H$yellow 50%$reset";   }
-_print_item_skip() { printf '%b' "\033[${row}H${cyan}skip$reset";   }
+_print_item_ok()   { [[ ! "$quiet_mode" ]] && printf '%b' "\033[${row}H${green}100%$reset";  }
+_print_item_fail() { [[ ! "$quiet_mode" ]] && printf '%b' "\033[${row}H${red}fail$reset";    }
+_print_item_check(){ [[ ! "$quiet_mode" ]] && printf '%b' "\033[${row}H${yellow}chck$reset"; }
+_print_item_half() { [[ ! "$quiet_mode" ]] && printf '%b' "\033[${row}H$yellow 50%$reset";   }
+_print_item_skip() { [[ ! "$quiet_mode" ]] && printf '%b' "\033[${row}H${cyan}skip$reset";   }
 
 #
 # Manage termination and cleanup of this script
@@ -1080,7 +1087,7 @@ _process_arguments()
   # Global variables used in other functions/operations
   local -g create_spectrogram force_compression force_replaygain \
     no_extra_tags directory operations global_jobs compress_jobs \
-    compress_threads no_banner
+    compress_threads no_banner quiet_mode
 
   local arg invalid op
   local -a conflicting operations_to_run
@@ -1093,7 +1100,7 @@ _process_arguments()
 
   # Processes all the possible positional parameters, short options
   # only, handling conflicting parameters
-  while getopts ':j:J:T:mtcCaAgLlGrepnhvoxq' arg "$@"; do
+  while getopts ':j:J:T:mtcCaAgLlGrepnhvoxqB' arg "$@"; do
     case "$arg" in
       # Given argument is not valid. 'OPTARG' is 'arg' before 'arg' is
       # set to '?'
@@ -1121,8 +1128,11 @@ _process_arguments()
       # Disable color output
       'n') unset -v 'reset' 'red' 'green' 'yellow' 'blue' 'magenta' 'cyan' ;;
 
+      # Quiet mode (suppress all output)
+      'q') quiet_mode='true' ;;
+
       # Disable runtime information banner
-      'q') no_banner='true' ;;
+      'B') no_banner='true' ;;
 
       # Prevent COMPRESSION tag from being applied during compression
       'x') no_extra_tags='true' ;;
@@ -1468,7 +1478,7 @@ _decode_to_wav()
       output="${output//$'\b'}"  # Remove all backspace characters
 
       # Remove beginning 'complete' string (from backspace characters)
-      printf "\033[${row}H${yellow}%4s$reset" "${output#complete}"
+      [[ ! "$quiet_mode" ]] && printf "\033[${row}H${yellow}%4s$reset" "${output#complete}"
     fi
 
     # Used to validate previous output is an error and not a filename
@@ -1549,7 +1559,7 @@ _generate_spectrogram()
     output="${output%%.*}"    # Strip floating point from output
 
     # Re-add percentage when printing
-    printf "\033[${row}H${yellow}%4s$reset" "$output%"
+    [[ ! "$quiet_mode" ]] && printf "\033[${row}H${yellow}%4s$reset" "$output%"
   done < <(
     sox 2>&1 "$item" -S -n spectrogram -o "$spectrogram" -t "$item" \
       -c '' -p 1 -z 90 -Z 0 -q 249 -w Hann -x 1800 -y 513
@@ -1759,7 +1769,7 @@ _compress()
       output="${output//$'\b'}"  # Remove all backspace characters
 
       # Remove beginning ratio string (from backspace characters)
-      printf "\033[${row}H${yellow}%4s$reset" "${output#ratio=?.???}"
+      [[ ! "$quiet_mode" ]] && printf "\033[${row}H${yellow}%4s$reset" "${output#ratio=?.???}"
     fi
 
     # Used to validate previous output is an error and not a filename
@@ -1835,7 +1845,7 @@ _test()
 
     # [FIRST] FLAC testing percentage complete
     if [[ "$output" == *[[:digit:]]% ]]; then
-      printf "\033[${row}H${yellow}%4s$reset" "$output"
+      [[ ! "$quiet_mode" ]] && printf "\033[${row}H${yellow}%4s$reset" "$output"
     fi
 
     # Used to validate previous output is an error and not a filename
@@ -1949,7 +1959,7 @@ _lac()
     # The first '=' found is the progress bar (max 50), which is counted
     # and integer scaling division is performed to get the percentage
     if [[ "$output" == '=' ]]; then
-      printf "\033[${row}H${yellow}%4s$reset" "$(( (++count * 100) / 50 ))%"
+      [[ ! "$quiet_mode" ]] && printf "\033[${row}H${yellow}%4s$reset" "$(( (++count * 100) / 50 ))%"
       continue
     fi
 
@@ -2101,7 +2111,7 @@ _aucdtect()
     MALLOC_CHECK_='0' auCDtect -m20 "$item_wav" 2> >(
       while IFS=$'\n' read -rd $'\r' aucdtect_stderr; do
         aucdtect_stderr="${aucdtect_stderr##*[}"
-        printf >&4 "\033[${row}H${yellow}%4s$reset" "${aucdtect_stderr%]}"
+        [[ ! "$quiet_mode" ]] && printf >&4 "\033[${row}H${yellow}%4s$reset" "${aucdtect_stderr%]}"
       done
     )
   )"
@@ -2151,7 +2161,7 @@ _aucdtect()
     MALLOC_CHECK_='0' auCDtect -m0 "$item_wav" 2> >(
       while IFS=$'\n' read -rd $'\r' aucdtect_stderr; do
         aucdtect_stderr="${aucdtect_stderr##*[}"
-        printf >&4 "\033[${row}H${yellow}%4s$reset" "${aucdtect_stderr%]}"
+        [[ ! "$quiet_mode" ]] && printf >&4 "\033[${row}H${yellow}%4s$reset" "${aucdtect_stderr%]}"
       done
     )
   )"
@@ -2979,10 +2989,10 @@ else
 fi
 
 # Display a banner for runtime information and configuration settings
-[[ ! "$no_banner" ]] && _runtime_banner
+[[ ! "$no_banner" && ! "$quiet_mode" ]] && _runtime_banner
 
 # _retag(): Display a countdown
-[[ " ${operations[*]} " == *' _retag '* ]] && _countdown_metadata
+[[ " ${operations[*]} " == *' _retag '* && ! "$quiet_mode" ]] && _countdown_metadata
 
 #
 # Obtain the total FLAC files to process (files and/or directories)
@@ -3009,7 +3019,7 @@ if [[ ! -f "${total_items[0]}" ]]; then
 
   # Update title message with right aligned message indicating there
   # were no FLAC files found
-  printf "\033[$(( $(_row) - 1 ));${found_flacs_align}H${red}%s${reset}\n" \
+  [[ ! "$quiet_mode" ]] && printf "\033[$(( $(_row) - 1 ));${found_flacs_align}H${red}%s${reset}\n" \
     "$found_flacs_msg"
 
   _error 'There were no FLAC files found!'
@@ -3022,7 +3032,7 @@ else
 
   # Update title message with right aligned message indicating success
   # in finding FLAC files to process
-  printf "\033[$(( $(_row) - 1 ));${found_flacs_align}H${green}%s${reset}\n" \
+  [[ ! "$quiet_mode" ]] && printf "\033[$(( $(_row) - 1 ));${found_flacs_align}H${green}%s${reset}\n" \
     "$found_flacs_msg"
 fi
 
